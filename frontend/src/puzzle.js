@@ -24,7 +24,10 @@ export async function loadPuzzle() {
     puzzleNumber: puzzleNumber(date),
     maxGuesses: MAX_GUESSES,
     store: pool.store,
-    product,
+    product: {
+      ...product,
+      imageUrl: `${import.meta.env.BASE_URL}products/${product.barcode}.webp`,
+    },
     price,
   }
 }

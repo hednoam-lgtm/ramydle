@@ -7,7 +7,6 @@
 
 const EPOCH_UTC = Date.UTC(2026, 0, 1)
 const SALT = 'ramydle'
-const IMAGE_URL = 'https://img.rami-levy.co.il/product/{barcode}/large.jpg'
 
 export const MAX_GUESSES = 6
 const WIN_TOLERANCE = 0.05
@@ -63,8 +62,7 @@ export function productFor(iso, pool) {
   const size = pool.length
   const cycle = Math.floor(n / size)
   const offset = ((n % size) + size) % size
-  const item = pool[permutation(cycle, size)[offset]]
-  return { ...item, imageUrl: IMAGE_URL.replace('{barcode}', item.barcode) }
+  return pool[permutation(cycle, size)[offset]]
 }
 
 export function scoreGuess(guess, price) {

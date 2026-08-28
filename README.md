@@ -43,10 +43,17 @@ cd ../frontend && npm install
 cd backend
 .venv/bin/python -m ramydle.fetch_prices --store 001   # download today's PriceFull
 .venv/bin/python -m ramydle.build_pool                 # parse, filter, image-verify
+.venv/bin/python -m ramydle.fetch_images               # download + downscale photos
 ```
 
 The first pool build probes every barcode against the image CDN and takes a while. Results are
 cached in `data/image_cache.json`, so later runs only probe barcodes they haven't seen.
+
+`fetch_images.py` takes ~12 minutes on a cold run and is resumable — it skips anything already on
+disk, so after a pool refresh it only fetches genuinely new products. **The CDN rate-limits
+aggressively**: eight parallel streams earned a `429` on every request within seconds, and the
+block outlasted the burst. The script therefore runs two workers ~0.4s apart and parks *all* of
+them on a `429`, since retrying independently only feeds the block. Don't raise the concurrency.
 
 `pool.json` is committed, so the game runs without re-fetching. Re-run both scripts to refresh
 prices.
@@ -79,8 +86,10 @@ repo, set **Settings → Pages → Source** to **GitHub Actions** once; nothing 
 The build uses a relative asset base, so the same artifact works both at
 `username.github.io/ramydle/` and at the root of a custom domain.
 
-For a custom domain: point a `CNAME` DNS record at `username.github.io`, enter the domain under
-Settings → Pages, and commit a `CNAME` file in `frontend/public/` containing just the domain.
+For a custom domain: enter it under Settings → Pages and add the DNS records at your registrar
+(four `A` records for the apex, plus a `CNAME` for `www` → `<user>.github.io`). Because this repo
+publishes via Actions rather than from a branch, **no `CNAME` file is needed** — GitHub ignores one
+if present.
 
 Shared results end with a link back to the game, derived from wherever the page is served — correct
 on both the github.io subpath and a custom domain with no configuration. To pin one canonical URL
@@ -89,7 +98,14 @@ regardless of where a player loaded the game, set a repository variable `SITE_UR
 
 ## Keeping prices fresh
 
-`pool.json` is a snapshot. Re-run the two scripts above and commit the result to refresh prices;
-the push redeploys automatically. Product photos are hotlinked from `img.rami-levy.co.il` rather
-than self-hosted, so they cost no repo space but will all break at once if that CDN starts
-rejecting cross-origin requests.
+`pool.json` is a snapshot. Re-run the three scripts above and commit the result to refresh prices;
+the push redeploys automatically.
+
+Photos are **self-hosted** in `frontend/public/products/`, not hotlinked. The CDN serves 1024px
+originals and the card renders them in a 190px box, so `fetch_images.py` downscales to 480px WebP
+— about 16 KB each, ~30 MB for the full pool. That is smaller than the CDN's own 320px `small.jpg`
+and sharper on a retina screen, and it means the game has no runtime dependency on
+`img.rami-levy.co.il`, which rate-limits and could block referers at any time.
+
+For scale: `pool.json` is ~320 KB, so the product list — not the photo — dominates what a player
+downloads per visit.
