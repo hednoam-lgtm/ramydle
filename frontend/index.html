@@ -5,8 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <meta name="description" content="משחק יומי: נחשו את מחיר המוצר ברמי לוי" />
-    <title>רמידל — נחשו את המחיר</title>
+    <meta
+      name="description"
+      content="רמידל — משחק ניחוש יומי בעברית. נחשו את מחיר המוצר ברמי לוי בשישה ניחושים. מוצר חדש בכל יום."
+    />
+    <link rel="canonical" href="https://ramydle.com/" />
+    <title>רמידל — נחשו את המחיר ברמי לוי</title>
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "רמידל",
+        "alternateName": "Ramydle",
+        "url": "https://ramydle.com/",
+        "inLanguage": "he",
+        "description": "משחק ניחוש יומי: נחשו את מחיר המוצר ברמי לוי בשישה ניחושים."
+      }
+    </script>
 
     <!-- Link previews in WhatsApp/Telegram, where the game will mostly be shared. -->
     <meta property="og:title" content="רמידל — נחשו את המחיר" />
@@ -18,6 +34,16 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- The game is client-rendered, so the served HTML is otherwise empty.
+         This gives crawlers and JS-disabled visitors something real to read. -->
+    <noscript>
+      <h1>רמידל</h1>
+      <p>
+        משחק ניחוש יומי בעברית: כל יום מוצר אחד מרמי לוי, ולכם שישה ניחושים לנחש את מחירו.
+        מנצחים אם קלעתם עד 5% מהמחיר בפועל. המחירים מגיעים מקובץ שקיפות המחירים הרשמי של הרשת.
+      </p>
+      <p>המשחק דורש JavaScript כדי לפעול.</p>
+    </noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
