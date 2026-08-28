@@ -17,6 +17,8 @@ export default function App() {
   const [showStats, setShowStats] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [copied, setCopied] = useState(false)
+  // Fall back to the wordmark in text if the logo file is ever missing.
+  const [logoFailed, setLogoFailed] = useState(false)
 
   useEffect(() => {
     loadPuzzle()
@@ -71,7 +73,18 @@ export default function App() {
         <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="הסבר">
           ?
         </button>
-        <h1 className="title">רמידל</h1>
+        <h1 className="title">
+          {logoFailed ? (
+            'רמידל'
+          ) : (
+            <img
+              className="logo"
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="רמידל"
+              onError={() => setLogoFailed(true)}
+            />
+          )}
+        </h1>
         <button className="icon-btn" onClick={() => setShowStats(true)} aria-label="סטטיסטיקה">
           ▤
         </button>
