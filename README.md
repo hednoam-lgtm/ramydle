@@ -44,6 +44,7 @@ cd backend
 .venv/bin/python -m ramydle.fetch_prices --store 001   # download today's PriceFull
 .venv/bin/python -m ramydle.build_pool                 # parse, filter, image-verify
 .venv/bin/python -m ramydle.fetch_images               # download + downscale photos
+cd ../frontend && node scripts/build-puzzles.mjs       # deal / refresh the daily sequence
 ```
 
 The first pool build probes every barcode against the image CDN and takes a while. Results are
@@ -52,11 +53,11 @@ cached in `data/image_cache.json`, so later runs only probe barcodes they haven'
 `fetch_images.py` takes ~12 minutes on a cold run and is resumable — it skips anything already on
 disk, so after a pool refresh it only fetches genuinely new products. **The CDN rate-limits
 aggressively**: eight parallel streams earned a `429` on every request within seconds, and the
-block outlasted the burst. The script therefore runs two workers ~0.4s apart and parks *all* of
+block outlasted the burst. The script therefore runs two workers ~0.6s apart and parks *all* of
 them on a `429`, since retrying independently only feeds the block. Don't raise the concurrency.
 
-`pool.json` is committed, so the game runs without re-fetching. Re-run both scripts to refresh
-prices.
+`pool.json` is a build input and is not shipped to the browser; the game loads `puzzles.json`
+instead.
 
 ## Running
 
@@ -69,14 +70,24 @@ only used offline to build the pool.
 
 ## How the daily puzzle works
 
-Selection is deterministic and runs in the browser (`src/daily.js`). The puzzle number is days
-since 2026-01-01, and each cycle through the pool is a seeded shuffle — so every product appears
-once before any repeats, and a given date always yields the same product. The day rolls over at
-midnight in `Asia/Jerusalem`.
+The puzzle number is days since 2026-01-01, rolling over at midnight in `Asia/Jerusalem`.
+`puzzles.json` maps that number straight to a product: index = puzzle number.
 
-**The pool ships to the client, so the answers are readable in devtools.** That is inherent to a
-static build; Costcodle has the same property. A player who wants to cheat can, but has to work for
-it. Hiding the answer would require a backend.
+**The sequence is dealt once, offline, and never re-dealt.** It used to be derived in the browser
+from `pool.json` with a seeded shuffle, which is stable only while the pool never changes — and a
+price refresh adds and drops products, which silently re-dealt every past *and future* day. A
+player mid-round could have had the answer swapped underneath them.
+
+So `scripts/build-puzzles.mjs` owns the sequence. On a later run it:
+
+- freezes every day up to and including today, prices included — history is never rewritten;
+- refreshes prices only for days still in the future;
+- appends genuinely new products to the end;
+- keeps the last-known copy of a product that has left the pool, so no day can dangle.
+
+**The sequence ships to the client, so the answers are readable in devtools.** That is inherent to
+a static build; Costcodle has the same property. A player who wants to cheat can, but has to work
+for it. Hiding the answer would require a backend.
 
 ## Deploying to GitHub Pages
 
@@ -98,8 +109,8 @@ regardless of where a player loaded the game, set a repository variable `SITE_UR
 
 ## Keeping prices fresh
 
-`pool.json` is a snapshot. Re-run the three scripts above and commit the result to refresh prices;
-the push redeploys automatically.
+`puzzles.json` is a snapshot. Re-run the four commands above and commit the result to refresh
+prices; the push redeploys automatically. Days already played keep the price they were played at.
 
 Photos are **self-hosted** in `frontend/public/products/`, not hotlinked. The CDN serves 1024px
 originals and the card renders them in a 190px box, so `fetch_images.py` downscales to 480px WebP
@@ -107,5 +118,5 @@ originals and the card renders them in a 190px box, so `fetch_images.py` downsca
 and sharper on a retina screen, and it means the game has no runtime dependency on
 `img.rami-levy.co.il`, which rate-limits and could block referers at any time.
 
-For scale: `pool.json` is ~320 KB, so the product list — not the photo — dominates what a player
+For scale: `puzzles.json` is ~320 KB, so the sequence — not the photo — dominates what a player
 downloads per visit.

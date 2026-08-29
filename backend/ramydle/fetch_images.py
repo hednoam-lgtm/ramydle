@@ -19,7 +19,7 @@ import httpx
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[2]
-POOL = ROOT / "frontend" / "public" / "pool.json"
+POOL = ROOT / "backend" / "data" / "pool.json"
 OUT = ROOT / "frontend" / "public" / "products"
 
 SRC = "https://img.rami-levy.co.il/product/{barcode}/large.jpg"

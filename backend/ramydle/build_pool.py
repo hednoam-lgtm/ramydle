@@ -18,8 +18,8 @@ import httpx
 DATA = Path(__file__).resolve().parent.parent / "data"
 RAW = DATA / "raw"
 IMAGE_CACHE = DATA / "image_cache.json"
-# The pool is served as a static asset, so it lives in the frontend and is committed.
-POOL = Path(__file__).resolve().parents[2] / "frontend" / "public" / "pool.json"
+# Build input only — the browser gets the frozen puzzles.json, not the whole pool.
+POOL = DATA / "pool.json"
 
 IMG = "https://img.rami-levy.co.il/product/{barcode}/{size}.jpg"
 MIN_PRICE, MAX_PRICE = 2.0, 200.0
