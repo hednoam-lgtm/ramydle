@@ -21,8 +21,12 @@ Two consequences worth knowing:
   that has photos. Only ~16% of items have an image, so `build_pool.py` verifies every barcode
   against the image CDN and keeps only those that resolve. That still yields ~1,960 products —
   over five years of daily puzzles.
-- The feed truncates product names at 20 characters (25 in the description field), so some names
-  read as clipped mid-word. The photo carries most of the identification.
+- The feed truncates product names at 20 characters — both name fields, not just one — so 73% of
+  products arrive clipped mid-word (`משקה סויה וניל על הב`). Rami Levy's own catalogue API answers
+  unauthenticated and carries the real name (`משקה סויה וניל על הבוקר 1 ליטר`), so `fetch_names.py`
+  looks each barcode up once and caches it in `data/names.json`. The catalogue covers the online
+  store, a subset of the physical-store price file, so it resolves ~54% of barcodes; the rest keep
+  the truncated name. That takes truncated names from 73% down to 35%.
 
 ## Setup
 
@@ -44,6 +48,7 @@ cd backend
 .venv/bin/python -m ramydle.fetch_prices --store 001   # download today's PriceFull
 .venv/bin/python -m ramydle.build_pool                 # parse, filter, image-verify
 .venv/bin/python -m ramydle.fetch_images               # download + downscale photos
+.venv/bin/python -m ramydle.fetch_names                # full names from the catalogue API
 cd ../frontend && node scripts/build-puzzles.mjs       # deal / refresh the daily sequence
 ```
 

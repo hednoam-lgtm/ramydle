@@ -74,16 +74,25 @@ let puzzles
 if (fs.existsSync(OUT)) {
   const existing = JSON.parse(fs.readFileSync(OUT, 'utf8'))
   let repriced = 0
+  let relabelled = 0
   puzzles = existing.puzzles.map((p, i) => {
-    if (i <= todayIndex) return p // already played — frozen, prices included
     const fresh = byBarcode.get(p.barcode)
-    if (fresh && fresh.price !== p.price) repriced++
-    return fresh ? { ...p, price: fresh.price } : p
+    if (!fresh) return p // left the pool — keep the last-known copy so no day dangles
+    if (i <= todayIndex) {
+      // Already played. Which product it was and what it cost are history and stay
+      // frozen. The label is not history — the price feed truncates names at 20
+      // characters, so a fuller name for the same product is a fix, not a rewrite.
+      if (fresh.name !== p.name) relabelled++
+      return { ...p, name: fresh.name, manufacturer: fresh.manufacturer, size: fresh.size }
+    }
+    if (fresh.price !== p.price) repriced++
+    return { ...fresh }
   })
   const known = new Set(puzzles.map((p) => p.barcode))
   const added = pool.items.filter((i) => !known.has(i.barcode))
   puzzles.push(...added)
   console.log(`froze ${Math.min(todayIndex + 1, puzzles.length)} played day(s)`)
+  console.log(`relabelled ${relabelled} played day(s) — names only, prices untouched`)
   console.log(`repriced ${repriced} future day(s), appended ${added.length} new product(s)`)
 } else {
   puzzles = deal(pool.items)
