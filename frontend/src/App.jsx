@@ -1,71 +1,59 @@
 import { useEffect, useState } from 'react'
-import { loadPuzzle } from './puzzle'
-import { scoreRound } from './daily'
-import { loadGame, saveGame, loadStats, recordResult } from './storage'
-import { buildShareText, copyShare } from './share'
-import ProductCard from './components/ProductCard'
-import GuessList from './components/GuessList'
+import { loadStats, loadVersusStats } from './storage'
+import DailyGame from './components/DailyGame'
+import VersusGame from './components/VersusGame'
 import StatsModal from './components/StatsModal'
 import HelpModal from './components/HelpModal'
 
+const MODES = [
+  { id: 'daily', label: 'ניחוש מחיר' },
+  { id: 'versus', label: 'מה יקר יותר?' },
+]
+
+// Each mode keeps its own stats, so the stats panel is labelled per mode.
+const STATS_VIEW = {
+  daily: {
+    rateLabel: 'אחוז ניצחון',
+    distTitle: 'התפלגות ניחושים',
+    distLabels: ['1', '2', '3', '4', '5', '6'],
+    load: loadStats,
+  },
+  versus: {
+    rateLabel: 'ימים מושלמים',
+    distTitle: 'תשובות נכונות ביום',
+    distLabels: ['0', '1', '2', '3', '4'],
+    load: loadVersusStats,
+  },
+}
+
+function modeFromHash() {
+  return window.location.hash.replace(/^#\/?/, '') === 'versus' ? 'versus' : 'daily'
+}
+
 export default function App() {
-  const [puzzle, setPuzzle] = useState(null)
-  const [round, setRound] = useState(null)
-  const [input, setInput] = useState('')
-  const [error, setError] = useState('')
-  const [stats, setStats] = useState(loadStats)
+  const [mode, setMode] = useState(modeFromHash)
   const [showStats, setShowStats] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [copied, setCopied] = useState(false)
   // Fall back to the wordmark in text if the logo file is ever missing.
   const [logoFailed, setLogoFailed] = useState(false)
 
+  // The mode lives in the hash, so a shared result opens the mode it came from.
   useEffect(() => {
-    loadPuzzle()
-      .then((data) => {
-        setPuzzle(data)
-        const saved = loadGame(data.date)
-        setRound(scoreRound(saved.guesses, data.price))
-      })
-      .catch(() => setError('לא הצלחנו לטעון את המשחק היומי'))
+    const sync = () => setMode(modeFromHash())
+    window.addEventListener('hashchange', sync)
+    return () => window.removeEventListener('hashchange', sync)
   }, [])
 
-  function handleGuess(event) {
-    event.preventDefault()
-    const value = Number(input)
-    if (!Number.isFinite(value) || value <= 0) {
-      setError('הכניסו מחיר תקין')
-      return
-    }
-    setError('')
-
-    const guesses = [...round.results.map((r) => r.guess), value]
-    const next = scoreRound(guesses, puzzle.price)
-    setRound(next)
-    setInput('')
-    saveGame({ date: puzzle.date, guesses })
-
-    if (next.finished) {
-      setStats(recordResult(puzzle.date, next.solved, next.results.length))
-      setTimeout(() => setShowStats(true), 1200)
-    }
+  function switchMode(next) {
+    if (next === mode) return
+    const url = next === 'daily' ? window.location.pathname + window.location.search : '#versus'
+    window.history.replaceState(null, '', url)
+    setMode(next)
+    setShowStats(false)
+    setShowHelp(false)
   }
 
-  async function handleShare() {
-    const text = buildShareText(
-      puzzle.puzzleNumber,
-      round.results,
-      round.solved,
-      puzzle.maxGuesses,
-    )
-    setCopied(await copyShare(text))
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  if (error && !puzzle) return <div className="state-msg">{error}</div>
-  if (!puzzle || !round) return <div className="state-msg">טוען…</div>
-
-  const remaining = puzzle.maxGuesses - round.results.length
+  const view = STATS_VIEW[mode]
 
   return (
     <div className="app">
@@ -90,56 +78,36 @@ export default function App() {
         </button>
       </header>
 
-      <p className="subtitle">כמה עולה המוצר הזה ברמי לוי?</p>
-
-      <ProductCard product={puzzle.product} />
-
-      <GuessList results={round.results} maxGuesses={puzzle.maxGuesses} />
-
-      {!round.finished ? (
-        <form className="guess-form" onSubmit={handleGuess}>
-          <div className="input-wrap">
-            <span className="shekel">₪</span>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="הכניסו מחיר"
-              autoFocus
-            />
-          </div>
-          <button type="submit" className="primary-btn">
-            נחשו
+      <nav className="modes">
+        {MODES.map((m) => (
+          <button
+            key={m.id}
+            className={`mode-tab ${m.id === mode ? 'active' : ''}`}
+            aria-current={m.id === mode}
+            onClick={() => switchMode(m.id)}
+          >
+            {m.label}
           </button>
-          <p className="remaining">נותרו {remaining} ניחושים</p>
-        </form>
+        ))}
+      </nav>
+
+      {mode === 'versus' ? (
+        <VersusGame key="versus" onFinish={() => setTimeout(() => setShowStats(true), 1200)} />
       ) : (
-        <div className="result">
-          <p className="verdict">
-            {round.solved ? 'כל הכבוד! 🎉' : 'לא נורא, מחר יום חדש'}
-          </p>
-          <p className="actual">
-            המחיר האמיתי: <strong>₪{round.actualPrice.toFixed(2)}</strong>
-          </p>
-          <button className="primary-btn" onClick={handleShare}>
-            {copied ? 'הועתק!' : 'שיתוף התוצאה'}
-          </button>
-        </div>
+        <DailyGame key="daily" onFinish={() => setTimeout(() => setShowStats(true), 1200)} />
       )}
-
-      {error && puzzle && <p className="error">{error}</p>}
 
       {showStats && (
-        <StatsModal stats={stats} onClose={() => setShowStats(false)} />
+        // Read at open time: the game just wrote the result to localStorage.
+        <StatsModal
+          stats={view.load()}
+          rateLabel={view.rateLabel}
+          distTitle={view.distTitle}
+          distLabels={view.distLabels}
+          onClose={() => setShowStats(false)}
+        />
       )}
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
-
-      <footer className="footer">
-        מחירים מתוך קובץ שקיפות המחירים של רמי לוי · סניף {puzzle.store}
-      </footer>
+      {showHelp && <HelpModal mode={mode} onClose={() => setShowHelp(false)} />}
     </div>
   )
 }

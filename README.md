@@ -4,6 +4,10 @@ A daily price-guessing game in the spirit of [Costcodle](https://costcodle.com/)
 Rami Levy grocery prices. Each day shows one product; you have 6 guesses, and you win by landing
 within 5% of the shelf price.
 
+A second daily mode — *מה יקר יותר?* — asks which of two baskets costs more: four questions a day,
+each pitting a quantity of one product against a quantity of another (4 מילקי against
+5 גבינה לבנה). The two baskets always differ by between 20% and 70%.
+
 ## Where the data comes from
 
 Israel's Food Act (2014) requires large retail chains to publish their prices daily in a
@@ -50,6 +54,7 @@ cd backend
 .venv/bin/python -m ramydle.fetch_images               # download + downscale photos
 .venv/bin/python -m ramydle.fetch_names                # full names from the catalogue API
 cd ../frontend && node scripts/build-puzzles.mjs       # deal / refresh the daily sequence
+node scripts/build-versus.mjs                          # deal / refresh the basket questions
 ```
 
 The first pool build probes every barcode against the image CDN and takes a while. Results are
@@ -61,8 +66,8 @@ aggressively**: eight parallel streams earned a `429` on every request within se
 block outlasted the burst. The script therefore runs two workers ~0.6s apart and parks *all* of
 them on a `429`, since retrying independently only feeds the block. Don't raise the concurrency.
 
-`pool.json` is a build input and is not shipped to the browser; the game loads `puzzles.json`
-instead.
+`pool.json` is a build input and is not shipped to the browser; the game loads `puzzles.json` and
+`versus.json` instead.
 
 ## Running
 
@@ -94,6 +99,30 @@ So `scripts/build-puzzles.mjs` owns the sequence. On a later run it:
 a static build; Costcodle has the same property. A player who wants to cheat can, but has to work
 for it. Hiding the answer would require a backend.
 
+## How the "which basket costs more" mode works
+
+`scripts/build-versus.mjs` deals `versus.json`: 1,000 days of four questions, each question two
+baskets of `qty × product`. Quantities run 1–6, and the builder searches that 6×6 grid for the
+combinations whose totals land between **20% and 70% apart**, measured against the cheaper basket,
+then picks one at random. Both thresholds, the quantity ceiling and the ₪250 per-basket cap are
+constants at the top of the script.
+
+The band is what makes the question a question. Under 20% apart it is a coin flip; over 70% it
+answers itself. In practice 98.7% of random product pairs admit at least one legal quantity
+combination, so the builder almost never has to re-draw, and every pair that works has a
+multi-unit option — 1-vs-1 is only used if a pair admits nothing else, since a mode about baskets
+should show baskets.
+
+No product appears twice in the same day, on either side.
+
+The sequence is frozen exactly like the daily puzzle, and the stakes are higher: a price refresh
+that re-dealt a played day could flip *which basket is the expensive one*, turning a past win into
+a loss. So days up to and including today keep their products, quantities and unit prices; only
+future days are re-dealt. Product names are not history and are always refreshed, for the same
+reason as in `puzzles.json`.
+
+`versus.json` is ~354 KB, so it is fetched only when a player opens the mode.
+
 ## Deploying to GitHub Pages
 
 `.github/workflows/deploy.yml` builds `frontend/` and publishes it on every push to `main`. In the
@@ -114,8 +143,9 @@ regardless of where a player loaded the game, set a repository variable `SITE_UR
 
 ## Keeping prices fresh
 
-`puzzles.json` is a snapshot. Re-run the four commands above and commit the result to refresh
-prices; the push redeploys automatically. Days already played keep the price they were played at.
+`puzzles.json` and `versus.json` are snapshots. Re-run the commands above and commit the result to
+refresh prices; the push redeploys automatically. Days already played keep the price they were
+played at, in both modes.
 
 Photos are **self-hosted** in `frontend/public/products/`, not hotlinked. The CDN serves 1024px
 originals and the card renders them in a 190px box, so `fetch_images.py` downscales to 480px WebP

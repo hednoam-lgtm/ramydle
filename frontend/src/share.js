@@ -22,3 +22,10 @@ export async function copyShare(text) {
     return false
   }
 }
+
+export function buildVersusShareText(puzzleNumber, results) {
+  const score = results.filter((r) => r.correct).length
+  const grid = results.map((r) => (r.correct ? '🟩' : '🟥')).join(' ')
+  // The hash lands the reader in the mode the result came from.
+  return `רמידל · מה יקר יותר? #${puzzleNumber} ${score}/${results.length}\n${grid}\n${SITE_URL}/#versus`
+}
